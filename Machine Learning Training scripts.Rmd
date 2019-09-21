@@ -1,0 +1,80 @@
+---
+title: "Machine Learning on Segments"
+author: "Parker Smith"
+date: "9/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Read In Libraries
+```{r}
+library(caret)
+library(e1071)
+library(kernlab)
+```
+##Partition data set to training and test via data splitting
+```{r}
+data(spam)
+## 75% to training, 25% to test
+inTrain <- createDataPartition(y=spam$type, p=0.75, list = FALSE)
+## all in index set to training
+training <- spam[inTrain,]
+## all not in index to test
+testing <- spam[-inTrain,]
+dim(training)
+```
+
+##Fit a model
+```{r}
+set.seed(32343)
+modelFit <- train(type~., data=training, method = "glm")
+modelFit
+```
+
+##K-Fold Example (cross-validation)
+```{r}
+set.seed(32323)
+folds <- createFolds(y=spam$type, k=10, list=TRUE, returnTrain = TRUE)
+sapply(folds, length)
+```
+
+##Return test
+```{r}
+set.seed(32323)
+folds <- createFolds(y=spam$type, k=10, list=TRUE, returnTrain=FALSE)
+sapply(folds, length)
+```
+##Resampling
+```{r}
+set.seed(32323)
+folds <- createResample(y=spam$type, times=10, list=TRUE)
+sapply(folds, length)
+```
+##Time Slices
+```{r}
+set.seed(32323)
+tme<- 1:1000
+folds <- createTimeSlices(y=tme, initialWindow = 20, horizon = 10)
+names(folds)
+folds$train[[1]]
+```
+
+##Look at results
+```{r}
+modelFit$finalModel
+```
+
+##Predict on new samples
+```{r}
+set.seed(32343)
+predictions <- predict(modelFit, newdata=testing)
+predictions
+```
+
+##Evaluate model
+```{r}
+confusionMatrix(predictions, testing$type)
+```

@@ -78,3 +78,381 @@ predictions
 ```{r}
 confusionMatrix(predictions, testing$type)
 ```
+
+# Plotting Predictors
+
+##Load Additional Libraries
+```{r}
+library(ISLR)
+library(ggplot2)
+library(Hmisc)
+library(gridExtra)
+```
+
+##Load data and produce summary of data
+```{r}
+data(Wage)
+summary(Wage)
+```
+
+
+##Build Training set and Test Set
+
+```{r}
+set.seed(32323)
+inTrain <- createDataPartition(y=Wage$wage,
+                               p=0.7, list=FALSE)
+
+training <- Wage[inTrain,]
+testing <- Wage[-inTrain,]
+dim(training); dim(testing)
+```
+
+##Plot Training set
+```{r}
+ featurePlot(x=training[,c("age","education","jobclass")], y=training$wage, plot="pairs")
+
+qplot(age,wage, colour=jobclass, data=training)
+
+qq <- qplot(age,wage,colour=education, data=training)
+
+qq + geom_smooth(method="lm",formula=y~x)
+```
+
+##cut2, making factors (with Hmisc package)
+```{r}
+cutWage <- cut2(training$wage, g=3)
+table(cutWage)
+```
+
+##Plotting box plots with cut2
+```{r}
+p1 <- qplot(cutWage, age, data=training, fill=cutWage, geom=c("boxplot"))
+
+p2 <- qplot(cutWage, age, data=training, fill=cutWage, geom=c("boxplot","jitter"))
+
+grid.arrange(p1,p2, ncol=2)
+```
+
+##Tables
+```{r}
+t1 <- table(cutWage, training$jobclass)
+t1
+prop.table(t1,1)
+```
+
+##Density Plots
+```{r}
+qplot(wage, colour=education, data=training, geom="density")
+```
+
+#Preprocessing Preditor Variables
+```{r}
+data(spam)
+inTrain <- createDataPartition(y=spam$type,p=0.75, list=FALSE)
+
+training <- spam[inTrain,]
+testing <- spam[-inTrain,]
+
+hist(training$capitalAve, main="", xlab="ave. capital run length")
+```
+
+##Standardizing
+```{r}
+trainCapAve <- training$capitalAve
+
+trainCapAveS <- (trainCapAve - mean(trainCapAve))/sd(trainCapAve)
+
+mean(trainCapAveS)
+
+sd(trainCapAveS)
+
+
+
+```
+
+###Must use mean and std from training set when standardizing test set
+```{r}
+testCapAve <- testing$capitalAve
+
+testCapAveS <- (testCapAve - mean(trainCapAve))/sd(trainCapAve)
+
+mean(testCapAveS)
+sd(testCapAveS)
+
+```
+
+##Standardizing - preProcess function
+```{r}
+preObj <- preProcess(training[,-58], method=c("center","scale"))
+
+trainCapAveS <- predict(preObj,training[,-58])$capitalAve
+
+mean(trainCapAveS)
+sd(trainCapAveS)
+```
+
+##Can use object created with preproccess function to standardize the test set
+```{r}
+preObj <- preProcess(training[,-58], method=c("center","scale"))
+
+testCapAveS <- predict(preObj, testing[,-58])$capitalAve
+
+mean(testCapAveS)
+sd(testCapAveS)
+```
+
+##Can send objects from preprocess arguments directly into the model
+
+
+##You can imput missing data using knnImpute
+```{r}
+preObj <- preProcess(training[,-58],method="knnImpute")
+
+capAve <- predict(preObj, training[,-58])$capAve
+```
+
+##Then can look at difference between imputed values and true standardized values
+```{r}
+quantile(capAve - capAveTruth) ##capAveTruth is the standardized capital ave
+```
+
+#Covariate Creation
+
+##separate data into training and test set
+```{r}
+inTrain <- createDataPartition(y=Wage$wage,p=0.7, list=FALSE)
+training <- Wage[inTrain,] ; testing <- Wage[-inTrain,]
+```
+
+##Convert factor variables to dummy variables
+```{r}
+dummies <- dummyVars(wage ~ jobclass, data=training)
+
+head(predict(dummies, newdata=training))
+```
+
+##Removing zero covariates
+```{r}
+nsv <- nearZeroVar(training, saveMetrics = TRUE)
+
+nsv
+```
+
+##Spline basis
+```{r}
+library(splines)
+
+bsBasis <- bs(training$age,df=3)
+
+#head(bsBasis)
+
+## column 1 is age, column 2 is age squared, column 3 is age cubed
+
+##Fitting curves with splines
+lm1 <- lm(wage ~ bsBasis, data=training)
+plot(training$age, training$wage, pch=19, cex=0.5)
+points(training$age, predict(lm1,newdata=training), col="red", pch=19, cex=0.5)
+##The bsBasis (splined) fits the plot better than a line would
+
+#When moving to the test set you would use the bsBasis formula with the new data plugged in
+
+testBsBasis <- predict(bsBasis, age=testing$age)
+```
+
+#Preprocessing with PCA
+
+##Finding Correlated predictors
+```{r}
+inTrain <- createDataPartition(y=spam$type, p=0.75, list=FALSE)
+
+training <- spam[inTrain,]
+testing <- spam[-inTrain,]
+
+M <- abs(cor(training[,-58]))
+diag(M) <- 0
+which(M > 0.8, arr.ind=T)
+
+##num415 and num857 are very highly correlated
+
+
+```
+
+##PCA with caret
+```{r}
+
+preProc <- preProcess(log10(spam[,-58]+1), method = "pca", pcaComp=2)
+
+spamPC <- predict(preProc, log10(spam[,-58]+1))
+
+plot(spamPC[,1], spamPC[,2])
+
+trainPC <- predict(preProc, log10(training[,-58]+1))
+
+modelFit <- train(training$type ~ ., method="glm", data = trainPC)
+
+##In test data set you would use the training preProc object but predict it on the test dataset
+
+testPC <- predict(preProc, log10(testing[,-58]+1))
+
+confusionMatrix(testing$type, predict(modelFit, testPC))
+```
+
+##You can pre process with pca right in training function. This will calculate the number of PCs for you SHOULD JUST USE THIS
+```{r}
+modelFit <- train(training$type ~., method="glm", preProcess="pca", data=training)
+
+confusionMatrix(testing$type, predict(modelFit, testing))
+```
+
+#Predicting with Regression
+
+##Example with Old Faithful eruptions
+
+### Load data and separate data into training and testing
+```{r}
+data(faithful)
+set.seed(333)
+
+inTrain <- createDataPartition(y=faithful$waiting, p=0.5, list=FALSE)
+
+trainFaith <- faithful[inTrain,]
+testFaith <- faithful[-inTrain,]
+
+head(trainFaith)
+```
+
+###visualize variables
+```{r}
+plot(trainFaith$waiting, trainFaith$eruptions, pch=19, col="blue", xlab = "Waiting", ylab="Duration")
+```
+
+###Fit a linear model
+```{r}
+lm1 <- lm(eruptions ~ waiting, data=trainFaith)
+summary(lm1)
+```
+
+###Visualizing model fit
+```{r}
+plot(trainFaith$waiting, trainFaith$eruptions, pch=19, col="blue", xlab="Waiting", ylab="Duration")
+lines(trainFaith$waiting, lm1$fitted,lwd=3)
+```
+
+##Predict a new value
+```{r}
+coef(lm1)[1] + coef(lm1)[2]*80
+
+##use the following code instead :)
+newdata <- data.frame(waiting=80)
+predict(lm1,newdata)
+```
+
+###Plot predictions - training and test
+```{r}
+par(mfrow=c(1,2))
+
+plot(trainFaith$waiting, trainFaith$eruptions, pch=19, col="blue", xlab="Waiting", ylab="Duration")
+lines(trainFaith$waiting, lm1$fitted,lwd=3)
+
+plot(testFaith$waiting, testFaith$eruptions, pch=19, col="blue", xlab="Waiting", ylab="Duration")
+lines(testFaith$waiting, predict(lm1,newdata=testFaith), lwd=3)
+```
+
+###Get training set/test set errors
+```{r}
+#calc RMSE on training
+sqrt(sum((lm1$fitted-trainFaith$eruptions)^2))
+
+#calc RMSE on test
+sqrt(sum((predict(lm1, newdata=testFaith)-testFaith$eruptions)^2))
+```
+
+###Prediction intervals
+```{r}
+pred1 <- predict(lm1, newdata=testFaith, interval="prediction")
+
+ord <- order(testFaith$waiting)
+
+plot(testFaith$waiting, testFaith$eruptions, pch=19, col="blue")
+
+matlines(testFaith$waiting[ord], pred1[ord,], type="l", ,col=c(1,2,2),lty=c(1,1,1),lwd=3)
+```
+### Same process as above, but with caret
+```{r}
+modFit <- train(eruptions ~ waiting, data=trainFaith, method="lm")
+
+summary(modFit$finalModel)
+```
+
+#Prediction with Regression using multiple covariates
+
+##Example using Wages dataset
+
+###Load and subset data without variable we are trying to predict
+```{r}
+data(Wage)
+Wage <- subset(Wage, select=-c(logwage))
+summary(Wage)
+```
+
+### set training and test sets
+```{r}
+inTrain <- createDataPartition(y=Wage$wage, p=0.7, list=FALSE)
+
+training <- Wage[inTrain,]
+testing <- Wage[-inTrain,]
+dim(training)
+dim(testing)
+```
+### Explore covariates with a feature plot
+```{r}
+featurePlot(x=training[,c("age","education","jobclass")], y=training$wage, plot="pairs")
+```
+
+###Plot age versus wage
+```{r}
+qplot(age,wage, colour=jobclass, data=training)
+
+qplot(age,wage, colour=education, data=training)
+```
+
+###Fit a linear model
+```{r} 
+##Caret automatically puts factors into dummies, and continuous data into standard variables
+modFit <- train(wage ~ age + jobclass + education, method="lm", data=training)
+
+finMod <- modFit$finalModel
+
+print(modFit)
+summary(finMod)
+```
+
+###Diagnostics
+```{r}
+
+###perfect model would have line centered at 0
+plot(finMod, 1, pch=19, cex=0.5, col="#00000010")
+```
+
+###Color by variables not used in model
+```{r}
+qplot(finMod$fitted,finMod$residuals, colour=race, data=training)
+
+##since many of the outliers are white, race could explain some more of the variability in wage and should be tested in the model
+```
+
+
+###Plot by index
+```{r}
+plot(finMod$residuals, pch=19)
+
+##if there are outliers at one end in the plot, there is likely some variable that the rows are ordered by that needs to be added to the model
+```
+
+###Predicted versus truth in test set, you would want to do this post model building and should not go back to training set to retrain model with it
+```{r}
+pred <- predict(modFit, testing)
+qplot(wage, pred, colour=year, data=testing)
+```
+

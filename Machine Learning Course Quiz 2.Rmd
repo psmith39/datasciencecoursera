@@ -1,0 +1,104 @@
+---
+title: "Machine Learning Course Quiz 2"
+author: "Parker Smith"
+date: "September 21, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1
+```{r}
+library(AppliedPredictiveModeling)
+data(AlzheimerDisease)
+```
+
+
+##Question 2
+```{r}
+library(AppliedPredictiveModeling)
+data(concrete)
+library(caret)
+library(Hmisc)
+set.seed(1000)
+inTrain = createDataPartition(mixtures$CompressiveStrength, p=3/4, list=FALSE)
+training = mixtures[inTrain,]
+testing = mixtures[-inTrain,]
+cutCement <- cut2(training$Cement, g=3)
+training$cutFlyAsh <- cut2(training$FlyAsh, g=3)
+
+qplot(x=training$CompressiveStrength, y=row.names(training), colour = training$cutCement, pch=19)
+
+
+plot( training$CompressiveStrength, col=training$cutFlyAsh, 
+      pch=19)
+plot(training$FlyAsh, training$CompressiveStrength, pch=19)
+plot(training$Age, training$CompressiveStrength, pch=19)
+
+index <- seq_along(1:nrow(training))
+ggplot(data = training, aes(x = index, y = CompressiveStrength)) + geom_point() + 
+    theme_bw()
+
+```
+
+##  Question 3
+```{r}
+library(AppliedPredictiveModeling)
+data(concrete)
+library(caret)
+set.seed(1000)
+inTrain = createDataPartition(mixtures$CompressiveStrength, p = 3/4)[[1]]
+training = mixtures[ inTrain,]
+testing = mixtures[-inTrain,]
+
+hist(training$Superplasticizer, main="", xlab="Super Plasticizer")
+```
+
+### Question 4
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+set.seed(3433)
+data(AlzheimerDisease)
+adData = data.frame(diagnosis,predictors)
+inTrain = createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+training = adData[ inTrain,]
+testing = adData[-inTrain,]
+pcaData <- training[,58:69]
+preProc <- preProcess(pcaData, method="pca",thresh= 0.8)
+predict(preProc, pcaData)
+
+
+```
+
+### Question 5
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+set.seed(3433)
+data(AlzheimerDisease)
+adData = data.frame(diagnosis,predictors)
+inTrain = createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+training = adData[ inTrain,]
+testing = adData[-inTrain,]
+
+trainingIL = training[,c(1,58:69)]
+testingIL = testing[,c(1,58:69)]
+
+pcaData <- trainingIL[,-1]
+preProc <- preProcess(pcaData, method="pca",thresh= 0.8)
+trainPCA <- predict(preProc, pcaData)
+trainPCA2 <- cbind(trainingIL$diagnosis, trainPCA)
+
+modFit <- train(diagnosis ~., data=trainingIL, method="glm")
+modPcaFit <- train(`trainingIL$diagnosis` ~., method="glm", data=trainPCA2)
+
+testPCA <- predict(preProc,testingIL[,-1])
+testPCA2 <- cbind(testingIL$diagnosis, testPCA)
+
+NonPCAresults <-confusionMatrix(testingIL$diagnosis, predict(modFit, testingIL))
+PCAresults <- confusionMatrix(testPCA2$`testingIL$diagnosis`, predict(modPcaFit, testPCA2))
+```
+

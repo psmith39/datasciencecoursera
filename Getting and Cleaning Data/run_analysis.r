@@ -6,21 +6,22 @@ library(data.table)
 setwd("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4")
 download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", destfile = "UCI HAR Dataset.zip", mode='wb')
 unzip("UCI HAR Dataset.zip")
+setwd("./UCI HAR Dataset")
 #Load data
   ##Test
-  test_set <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/test/X_test.txt",header=FALSE)
-  test_labels <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/test/Y_test.txt", header=FALSE)
-  test_subjects <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/test/subject_test.txt", header=FALSE)
+  test_set <- read.table("./test/X_test.txt",header=FALSE)
+  test_labels <- read.table("./test/Y_test.txt", header=FALSE)
+  test_subjects <- read.table("./test/subject_test.txt", header=FALSE)
  
    ##Train
-  train_set <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/train/X_train.txt", header=FALSE)
-  train_labels <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/train/Y_train.txt", header=FALSE)
-  train_subjects <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/train/subject_train.txt", header=FALSE)
+  train_set <- read.table("./train/X_train.txt", header=FALSE)
+  train_labels <- read.table("./train/Y_train.txt", header=FALSE)
+  train_subjects <- read.table("./train/subject_train.txt", header=FALSE)
   
   ##Extra Info
-  features_info <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/features_info.txt", header=FALSE)
-  features <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/features.txt", header=FALSE)
-  activity_labels <- read.table("C:/Users/parke/Documents/Data Science Training/Getting and Cleaning Data/Week 4/UCI HAR Dataset/activity_labels.txt", header=FALSE)
+  features_info <- read.table("./features_info.txt", header=FALSE)
+  features <- read.table("./features.txt", header=FALSE)
+  activity_labels <- read.table("./activity_labels.txt", header=FALSE)
  
 #Merge all Train and Test sets
   combined_set <- rbind(test_set,train_set)
